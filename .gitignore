@@ -1,3 +1,4 @@
 target/
 build/
 .env
+.DS_Store

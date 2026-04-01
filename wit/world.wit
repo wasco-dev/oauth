@@ -1,0 +1,131 @@
+/// OAuth 2.0 JWT client assertions (RFC 7521 / RFC 7523).
+///
+/// Covers both JWT use cases from RFC 7523:
+///   §2 — JWT authorization grant  → `make-jwt-bearer-claims` + `sign`
+///   §3 — JWT client authentication → `make-client-assertion-claims` + `sign-client-assertion`
+///
+/// `iat` and `exp` are computed at claims-construction time by the `make-*` functions.
+/// A unique `jti` claim is generated automatically for every signing call using
+/// wasi:random/random, satisfying the replay-prevention requirement of §3
+/// and the recommendation of §2.
+
+package wasco-dev:oauth@0.1.0;
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface types {
+
+  record sign-error {
+    message: string,
+  }
+
+  /// Returned by `sign` and `sign-client-assertion`.
+  /// On success: `jwt` and `jti` are set, `error` is absent.
+  /// On failure: `error` is set, `jwt` and `jti` are absent.
+  record sign-result {
+    /// The compact RS256 JWT (header.payload.signature) — present on success.
+    jwt: option<string>,
+
+    /// The auto-generated JWT ID — present on success. Useful for logging and replay detection.
+    jti: option<string>,
+
+    /// Error detail — present on failure.
+    error: option<sign-error>,
+  }
+
+  /// RFC 7523 §2 — JWT authorization grant claim set.
+  record jwt-bearer-claims {
+    /// JWT `iss` — the principal issuing the assertion.
+    issuer: string,
+
+    /// Space-separated OAuth 2.0 scopes (normalized by `make-jwt-bearer-claims`).
+    scope: string,
+
+    /// JWT `aud` — the token endpoint URL.
+    audience: string,
+
+    /// JWT `iat` — issued-at timestamp (Unix seconds), set by `make-jwt-bearer-claims`.
+    iat: u64,
+
+    /// JWT `exp` — expiry timestamp (Unix seconds), set by `make-jwt-bearer-claims`.
+    exp: u64,
+
+    /// JWT `sub` — defaults to `issuer` when absent.
+    subject: option<string>,
+  }
+
+  /// RFC 7523 §3 — JWT client authentication assertion claim set.
+  record client-assertion-claims {
+    /// JWT `iss` and `sub` — both equal to the client_id per RFC 7523 §3.
+    client-id: string,
+
+    /// JWT `aud` — the token endpoint URL.
+    audience: string,
+
+    /// JWT `iat` — issued-at timestamp (Unix seconds), set by `make-client-assertion-claims`.
+    iat: u64,
+
+    /// JWT `exp` — expiry timestamp (Unix seconds), set by `make-client-assertion-claims`.
+    exp: u64,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Interface
+// ---------------------------------------------------------------------------
+
+interface jwt-client {
+  use types.{ sign-error, sign-result, jwt-bearer-claims, client-assertion-claims };
+
+  /// Build a `jwt-bearer-claims` record (RFC 7523 §2).
+  /// Reads the wall clock to set `iat` = now and `exp` = now + expiry-seconds.
+  /// `scope` is a comma-separated string (e.g. "openid,email,profile") and is
+  /// normalized to space-separated in the returned record.
+  /// `expiry-seconds` defaults to 3600 when absent.
+  /// `subject` defaults to `issuer` when absent.
+  make-jwt-bearer-claims: func(
+    issuer: string,
+    scope: string,
+    audience: string,
+    expiry-seconds: option<u32>,
+    subject: option<string>,
+  ) -> jwt-bearer-claims;
+
+  /// Build a `client-assertion-claims` record (RFC 7523 §3).
+  /// Reads the wall clock to set `iat` = now and `exp` = now + expiry-seconds.
+  /// `expiry-seconds` defaults to 60 when absent.
+  make-client-assertion-claims: func(
+    client-id: string,
+    audience: string,
+    expiry-seconds: option<u32>,
+  ) -> client-assertion-claims;
+
+  /// RFC 7523 §2 — sign a JWT authorization grant with RS256.
+  /// Uses `iat` and `exp` from the claims record (set by `make-jwt-bearer-claims`).
+  /// A unique `jti` is generated automatically and returned in the result.
+  sign: func(
+    private-key-pem: string,
+    claims: jwt-bearer-claims,
+  ) -> sign-result;
+
+  /// RFC 7523 §3 — sign a JWT client authentication assertion with RS256.
+  /// `iss` and `sub` are both set to `client-id`.
+  /// Uses `iat` and `exp` from the claims record (set by `make-client-assertion-claims`).
+  /// A unique `jti` is generated automatically and returned in the result.
+  sign-client-assertion: func(
+    private-key-pem: string,
+    claims: client-assertion-claims,
+  ) -> sign-result;
+}
+
+// ---------------------------------------------------------------------------
+// World
+// ---------------------------------------------------------------------------
+
+world main {
+  export jwt-client;
+  import wasi:clocks/wall-clock@0.2.2;
+  import wasi:random/random@0.2.2;
+}

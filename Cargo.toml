@@ -1,0 +1,23 @@
+[package]
+name = "oauth"
+edition = "2021"
+version = "0.1.0"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = { version = "0.53", features = ["macros"] }
+# Pure-Rust RSA (PKCS8 key parsing + PKCS1v15 signing) — WASM-compatible
+rsa = "0.9"
+sha2 = { version = "0.10", features = ["oid"] }
+base64ct = { version = "1", features = ["alloc"] }
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+debug = false
+strip = true
+lto = true

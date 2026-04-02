@@ -17,10 +17,12 @@ package wasco-dev:oauth@0.1.0;
 
 interface types {
 
+  /// @description Error details when signing fails.
   record sign-error {
     message: string,
   }
 
+  /// @description Result containing either JWT+jti on success or error on failure.
   /// Returned by `sign` and `sign-client-assertion`.
   /// On success: `jwt` and `jti` are set, `error` is absent.
   /// On failure: `error` is set, `jwt` and `jti` are absent.
@@ -35,7 +37,7 @@ interface types {
     error: option<sign-error>,
   }
 
-  /// RFC 7523 §2 — JWT authorization grant claim set.
+  /// @description JWT authorization grant claims (RFC 7523 §2).
   record jwt-bearer-claims {
     /// JWT `iss` — the principal issuing the assertion.
     issuer: string,
@@ -56,7 +58,7 @@ interface types {
     subject: option<string>,
   }
 
-  /// RFC 7523 §3 — JWT client authentication assertion claim set.
+  /// @description JWT client authentication claims (RFC 7523 §3).
   record client-assertion-claims {
     /// JWT `iss` and `sub` — both equal to the client_id per RFC 7523 §3.
     client-id: string,
@@ -79,7 +81,7 @@ interface types {
 interface jwt-client {
   use types.{ sign-error, sign-result, jwt-bearer-claims, client-assertion-claims };
 
-  /// Build a `jwt-bearer-claims` record (RFC 7523 §2).
+  /// @description Build JWT bearer claims for OAuth 2.0 authorization grant (RFC 7523 §2).
   /// Reads the wall clock to set `iat` = now and `exp` = now + expiry-seconds.
   /// `scope` is a comma-separated string (e.g. "openid,email,profile") and is
   /// normalized to space-separated in the returned record.
@@ -93,7 +95,7 @@ interface jwt-client {
     subject: option<string>,
   ) -> jwt-bearer-claims;
 
-  /// Build a `client-assertion-claims` record (RFC 7523 §3).
+  /// @description Build client assertion claims for JWT client authentication (RFC 7523 §3).
   /// Reads the wall clock to set `iat` = now and `exp` = now + expiry-seconds.
   /// `expiry-seconds` defaults to 60 when absent.
   make-client-assertion-claims: func(
@@ -102,7 +104,7 @@ interface jwt-client {
     expiry-seconds: option<u32>,
   ) -> client-assertion-claims;
 
-  /// RFC 7523 §2 — sign a JWT authorization grant with RS256.
+  /// @description Sign JWT bearer claims with RS256, returns compact JWT string.
   /// Uses `iat` and `exp` from the claims record (set by `make-jwt-bearer-claims`).
   /// A unique `jti` is generated automatically and returned in the result.
   sign: func(
@@ -110,7 +112,7 @@ interface jwt-client {
     claims: jwt-bearer-claims,
   ) -> sign-result;
 
-  /// RFC 7523 §3 — sign a JWT client authentication assertion with RS256.
+  /// @description Sign client assertion with RS256, returns compact JWT string.
   /// `iss` and `sub` are both set to `client-id`.
   /// Uses `iat` and `exp` from the claims record (set by `make-client-assertion-claims`).
   /// A unique `jti` is generated automatically and returned in the result.

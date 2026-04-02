@@ -1,4 +1,0 @@
-version: "2"
-build:
-  command: cargo build --target wasm32-wasip2 --release
-  component_path: target/wasm32-wasip2/release/oauth.wasm

@@ -1,0 +1,8 @@
+on:
+  pull_request:
+  push:
+    branches: ["master"]
+
+jobs:
+  ci:
+    uses: wasco-dev/workflows/.github/workflows/ci.yml@main

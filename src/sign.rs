@@ -36,25 +36,25 @@ fn wasi_random_bytes(n: u64) -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------
-// Error helpers
+// Error construction
 // ---------------------------------------------------------------------------
 
-fn err(msg: impl Into<String>) -> SignError {
+fn sign_error(message: impl Into<String>) -> SignError {
     SignError {
-        message: msg.into(),
+        message: message.into(),
     }
 }
 
 // ---------------------------------------------------------------------------
-// base64url helpers
+// Base64 URL encoding
 // ---------------------------------------------------------------------------
 
-fn b64url(data: &[u8]) -> String {
+fn base64_url_encode(data: &[u8]) -> String {
     Base64UrlUnpadded::encode_string(data)
 }
 
-fn b64url_str(s: &str) -> String {
-    b64url(s.as_bytes())
+fn base64_url_encode_string(s: &str) -> String {
+    base64_url_encode(s.as_bytes())
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ fn b64url_str(s: &str) -> String {
 
 fn generate_jti() -> String {
     let bytes = wasi_random_bytes(16);
-    b64url(&bytes)
+    base64_url_encode(&bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -86,15 +86,23 @@ fn signing_key_from_pem(pem: &str) -> Result<SigningKey<Sha256>, SignError> {
     } else {
         pem
     };
-    let private_key = RsaPrivateKey::from_pkcs8_pem(pem).map_err(|e| err(e.to_string()))?;
+    let private_key = RsaPrivateKey::from_pkcs8_pem(pem).map_err(|e| sign_error(e.to_string()))?;
     Ok(SigningKey::<Sha256>::new(private_key))
 }
 
 fn compact_jwt(signing_key: &SigningKey<Sha256>, payload: &str) -> String {
-    let signing_input = format!("{}.{}", b64url_str(HEADER), b64url_str(payload));
+    let signing_input = format!(
+        "{}.{}",
+        base64_url_encode_string(HEADER),
+        base64_url_encode_string(payload)
+    );
     let mut rng = WasiRng;
     let sig = signing_key.sign_with_rng(&mut rng, signing_input.as_bytes());
-    format!("{}.{}", signing_input, b64url(sig.to_bytes().as_ref()))
+    format!(
+        "{}.{}",
+        signing_input,
+        base64_url_encode(sig.to_bytes().as_ref())
+    )
 }
 
 // ---------------------------------------------------------------------------

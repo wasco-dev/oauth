@@ -9,7 +9,7 @@
 /// wasi:random/random, satisfying the replay-prevention requirement of §3
 /// and the recommendation of §2.
 
-package wasco-dev:oauth@0.1.0;
+package wasco-dev:oauth@0.1.1;
 
 // ---------------------------------------------------------------------------
 // Types
